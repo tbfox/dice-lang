@@ -128,7 +128,8 @@ in v0.1.
 | `table` | `.at_least`, `.at_most` | |
 | `roll` | `.roll_values()` | prints `[2, 4] - 6` |
 | `list` | `roll.values` | `[2, 4]` |
-| `bool` | `true`, `false`, `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
+| `bool` | `true`, `false` | prints `true` / `false` |
+| `result` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
 | `nil` | `expr;`, `print(x)` | prints `nil` |
 
 ### 4.1.1 Dice arithmetic
@@ -164,11 +165,11 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 | `dice` | `.min` | `number` | smallest possible outcome |
 | `dice` | `.max` | `number` | largest possible outcome |
 | `dice` | `.roll()` | `number` | roll once and return the total |
-| `dice` | `.roll(n)` | `bool` | roll once; success if the total equals `n` |
+| `dice` | `.roll(n)` | `result` | roll once; success if the total equals `n` |
 | `dice` | `.roll_values()` | `roll` | roll once, keeping each die |
 | `roll` | `.values` | `list` | each die's result, e.g. `[2, 4]` |
 | `roll` | `.sum` | `number` | total of `.values` |
-| `value` | `.roll_against(d, must_exceed = false)` | `bool` | roll `d`; see below |
+| `value` | `.roll_against(d, must_exceed = false)` | `result` | roll `d`; see below (`must_exceed` is a `bool`) |
 
 **`roll_against`** rolls `d` once and compares the total to the value:
 
@@ -188,21 +189,33 @@ and ends with a `---` line. The label is:
 `kind` is `normal`, `at_least`, `at_most`, `mean`, `min` or `max`. A member access keeps the
 variable's name, so `print(dmg.mean)` → `dmg : 2d4 (mean): 5`.
 
+The name is always the variable the dice is read from, even when it was copied from another variable:
+
+```dice
+let dmg = 2d4;
+let a = dmg;
+print(dmg);   // dmg : 2d4 (normal):
+print(a);     // a : 2d4 (normal):
+```
+
 ```
 dmg : 2d4 (normal):
 2    6.25
-3    12.50
+3    12.5
 ...
 ---
 dmg : 2d4 (mean): 5
 ---
 ```
 
-- A table row is the outcome, 4 spaces, then the percentage with 2 decimals. Rows have no trailing spaces.
-- A `number` outside a table prints with up to 4 decimals, rounded, with no trailing zeros:
-  `5`, `10.5`, `10.2345`.
-- Plain results print with no label or separator: a `bool` prints as `success` / `fail`, a `list` as `[2, 4]`,
-  a `roll` as its values, ` - `, then its sum (`[2, 4] - 6`), and `nil` as `nil`.
+- **Numbers** everywhere, including table percentages, print with up to 4 decimals, rounded, with no
+  trailing zeros: `5`, `12.5`, `10.2345`, `100`.
+- A table row is the outcome, 4 spaces, then the percentage. Rows have no trailing spaces.
+  Column alignment will be decided later.
+- Plain results print with no label or separator: a `bool` prints as `true` / `false`, a `result` as
+  `success` / `fail`, a `list` as `[2, 4]`, a `roll` as its values, ` - `, then its sum (`[2, 4] - 6`),
+  and `nil` as `nil`.
+- A `result` has no other data yet. Extra details may be attached to it later.
 
 ---
 
@@ -238,30 +251,30 @@ Output (lines 4 to 8 from the end are random):
 ```
 dmg : 2d4 (normal):
 2    6.25
-3    12.50
+3    12.5
 4    18.75
-5    25.00
+5    25
 6    18.75
-7    12.50
+7    12.5
 8    6.25
 ---
 dmg : 2d4 (at_least):
-2    100.00
+2    100
 3    93.75
 4    81.25
-5    62.50
-6    37.50
+5    62.5
+6    37.5
 7    18.75
 8    6.25
 ---
 dmg : 2d4 (at_most):
 2    6.25
 3    18.75
-4    37.50
-5    62.50
+4    37.5
+5    62.5
 6    81.25
 7    93.75
-8    100.00
+8    100
 ---
 dmg : 2d4 (mean): 5
 ---
@@ -281,10 +294,4 @@ nil
 
 ## 6. Open questions
 
-- **Q6: Table percentages.** Numbers outside tables drop trailing zeros (`10.5`). Table percentages still use
-  2 fixed decimals (`12.50`, `100.00`), matching your sample output. Should they switch to the new
-  format (`12.5`, `100`)?
-- **Q7: Names through aliases.** After `let a = dmg;`, does `print(a)` show `a : 2d4` or `dmg : 2d4`?
-  This spec says `a`, the variable it's read from.
-- **Q8: Printing `true` / `false`.** `bool` prints as `success` / `fail`, so `print(true)` shows `success`.
-  Is that what you want, or should literals print as `true` / `false`?
+None right now.
