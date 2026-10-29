@@ -32,7 +32,7 @@ digits   = digit { digit } ;
 comment  = "//" { any char except newline } ;
 ```
 
-- **Keywords:** `let`
+- **Keywords:** `let` `true` `false`
 - **Punctuation:** `=` `;` `+` `-` `.` `(` `)` `,`
 - Whitespace and comments are skipped between tokens.
 
@@ -66,14 +66,20 @@ sum       = postfix { ( "+" | "-" ) postfix } ;   (* left-associative: a - b + c
 
 postfix   = primary { "." IDENT             (* member:  dmg.mean *)
                     | "(" [ args ] ")" } ;  (* call:    print(x), dmg.roll(3) *)
-args      = expr { "," expr } ;
+args      = arg { "," arg } ;
+arg       = [ IDENT "=" ] expr ;             (* named:   must_exceed = true *)
 
 primary   = DICE
           | VALUE
           | NUMBER
+          | "true" | "false"
           | IDENT
           | "(" expr ")" ;
 ```
+
+**Named arguments.** Inside a call, `name = expr` passes an argument by name. Positional arguments
+come first, then named ones: `f(a, b, x = 1)` is valid but `f(x = 1, a)` is an error. This doesn't clash
+with `let`, because a bare `name = expr` is only allowed as a call argument.
 
 Precedence, lowest to highest:
 
@@ -94,16 +100,16 @@ So `d20 + 5.min` parses as `d20 + (5.min)`. Use `(d20 + 5).min` for the minimum 
 
 - `;` separates expressions. By convention, put one at the end of each line.
 - `;` discards a value. An expression followed by `;` produces `nil`.
-- The program's result is its last expression. It is written to stdout using the formats in 4.4.
-  If the program ends with `;`, the result is `nil` and nothing is written.
+- The program's result is its last expression. It is always written to stdout using the formats in 4.4.
+  If the program ends with `;`, the result is `nil`, so the last line of stdout is `nil`.
 
 | program | stdout |
 |---|---|
 | `2d4.roll()` | `5` (the roll) |
-| `2d4.roll();` | nothing (result is `nil`) |
-| `print(2d4.roll())` | `5`, printed by `print`. `print` returns `nil`, so nothing more is written. |
-| `print(let outcome = dmg.roll_values());` | `[2, 4] - 6` |
-| `let outcome = dmg.roll_values(); print(outcome);` | `[2, 4] - 6` (same as above) |
+| `2d4.roll();` | `nil` |
+| `print(2d4.roll())` | `5` from `print`, then `nil`, because `print` returns `nil` |
+| `print(let outcome = dmg.roll_values());` | `[2, 4] - 6`, then `nil` |
+| `let outcome = dmg.roll_values(); print(outcome);` | `[2, 4] - 6`, then `nil` (same as above) |
 
 ---
 
@@ -122,15 +128,15 @@ in v0.1.
 | `table` | `.at_least`, `.at_most` | |
 | `roll` | `.roll_values()` | prints `[2, 4] - 6` |
 | `list` | `roll.values` | `[2, 4]` |
-| `bool` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
-| `nil` | `expr;`, `print(x)` | prints nothing |
+| `bool` | `true`, `false`, `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
+| `nil` | `expr;`, `print(x)` | prints `nil` |
 
 ### 4.1.1 Dice arithmetic
 
 `+` and `-` combine any mix of `dice` and `number`, in any order and any number of terms.
 The result's outcomes are every possible sum or difference, weighted by probability.
 
-| expression | outcomes | label |
+| expression | outcomes | notation |
 |---|---|---|
 | `5d12 - 2d4` | -3 to 58 | `5d12-2d4` |
 | `d20 + 5 - 1d4` | 2 to 24 | `1d20+5-1d4` |
@@ -139,8 +145,8 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 
 - Outcomes can be negative or zero. Tables list them in ascending order.
 - `value` (`v17`) can't be used with `+` / `-` yet.
-- The label is the expression with spaces removed and every die written with a count (`d20` → `1d20`).
-  This is a guess; see Q3.
+- **Notation** is the expression with spaces removed and every die written with its count
+  (`d20` becomes `1d20`). Variables are replaced by their notation: if `dmg = 2d4`, then `dmg + 1` is `2d4+1`.
 
 ### 4.2 Functions
 
@@ -162,26 +168,41 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 | `dice` | `.roll_values()` | `roll` | roll once, keeping each die |
 | `roll` | `.values` | `list` | each die's result, e.g. `[2, 4]` |
 | `roll` | `.sum` | `number` | total of `.values` |
-| `value` | `.roll_against(d)` | `bool` | roll `d`; success if the total ≥ this value |
+| `value` | `.roll_against(d, must_exceed = false)` | `bool` | roll `d`; see below |
+
+**`roll_against`** rolls `d` once and compares the total to the value:
+
+| call | success when |
+|---|---|
+| `dc.roll_against(save)` | total ≥ value (meets or beats, the default) |
+| `dc.roll_against(save, must_exceed = true)` | total > value (must beat) |
 
 ### 4.4 Print formats
 
-A distribution report (`dice`, `.at_least`, `.at_most`, `.mean`, `.min`, `.max`) starts with a label,
-which is the dice's notation and the report kind, and ends with a `---` line:
+A distribution report (`dice`, `.at_least`, `.at_most`, `.mean`, `.min`, `.max`) starts with a label
+and ends with a `---` line. The label is:
+
+- `name : notation (kind)` when the dice is read from a variable: `print(save)` → `save : 1d20+5 (normal):`
+- `notation (kind)` otherwise: `print(d20 + 5)` → `1d20+5 (normal):`
+
+`kind` is `normal`, `at_least`, `at_most`, `mean`, `min` or `max`. A member access keeps the
+variable's name, so `print(dmg.mean)` → `dmg : 2d4 (mean): 5`.
 
 ```
-2d4 (normal):
+dmg : 2d4 (normal):
 2    6.25
 3    12.50
 ...
 ---
-2d4 (mean): 5
+dmg : 2d4 (mean): 5
 ---
 ```
 
-- A table row is the outcome, 4 spaces, then the percentage with 2 decimals.
-- Plain results print with no label or separator: a `number` prints as `4`, a `bool` as `success` / `fail`,
-  a `list` as `[2, 4]`, and a `roll` as its values, ` - `, then its sum: `[2, 4] - 6`.
+- A table row is the outcome, 4 spaces, then the percentage with 2 decimals. Rows have no trailing spaces.
+- A `number` outside a table prints with up to 4 decimals, rounded, with no trailing zeros:
+  `5`, `10.5`, `10.2345`.
+- Plain results print with no label or separator: a `bool` prints as `success` / `fail`, a `list` as `[2, 4]`,
+  a `roll` as its values, ` - `, then its sum (`[2, 4] - 6`), and `nil` as `nil`.
 
 ---
 
@@ -209,12 +230,13 @@ let save = d20+5;
 print(dc.roll_against(save)); // success if save >= 17
 ```
 
-The program ends with `;`, so its result is `nil`. Everything below comes from `print`.
+Everything up to `success` comes from `print`. The program ends with `;`, so its result is `nil`,
+which is written as the last line.
 
-Output (the last five lines are random):
+Output (lines 4 to 8 from the end are random):
 
 ```
-2d4 (normal):
+dmg : 2d4 (normal):
 2    6.25
 3    12.50
 4    18.75
@@ -223,7 +245,7 @@ Output (the last five lines are random):
 7    12.50
 8    6.25
 ---
-2d4 (at_least):
+dmg : 2d4 (at_least):
 2    100.00
 3    93.75
 4    81.25
@@ -232,7 +254,7 @@ Output (the last five lines are random):
 7    18.75
 8    6.25
 ---
-2d4 (at_most):
+dmg : 2d4 (at_most):
 2    6.25
 3    18.75
 4    37.50
@@ -241,29 +263,28 @@ Output (the last five lines are random):
 7    93.75
 8    100.00
 ---
-2d4 (mean): 5
+dmg : 2d4 (mean): 5
 ---
-2d4 (min): 2
+dmg : 2d4 (min): 2
 ---
-2d4 (max): 8
+dmg : 2d4 (max): 8
 ---
 4
 fail
 [2, 4]
 6
 success
+nil
 ```
 
 ---
 
 ## 6. Open questions
 
-- **Q1: How `nil` shows up.** If the program's result is `nil`, does stdout show nothing (this spec) or the
-  word `nil`? Relatedly, should `print(x)` return `nil` (this spec) or `x`? If it returned `x`, a final
-  `print(x)` with no `;` would write `x` twice.
-- **Q2: `roll_against` ties.** Is meeting the DC a success (`save >= 17`, as in D&D), or must the roll beat it?
-- **Q3: Labels for combined dice.** What should `print(d20+5)` show as its label: `d20+5`, `1d20+5`, or
-  the variable name `save`?
-- **Q4: Non-whole means.** `2d4` has mean 5. How should `print(d20.mean)` show 10.5: as `10.5` or `10.50`?
-- **Q5: Trailing spaces.** Your sample output had trailing spaces after each table row. I treated them as
-  accidental and left them out.
+- **Q6: Table percentages.** Numbers outside tables drop trailing zeros (`10.5`). Table percentages still use
+  2 fixed decimals (`12.50`, `100.00`), matching your sample output. Should they switch to the new
+  format (`12.5`, `100`)?
+- **Q7: Names through aliases.** After `let a = dmg;`, does `print(a)` show `a : 2d4` or `dmg : 2d4`?
+  This spec says `a`, the variable it's read from.
+- **Q8: Printing `true` / `false`.** `bool` prints as `success` / `fail`, so `print(true)` shows `success`.
+  Is that what you want, or should literals print as `true` / `false`?
