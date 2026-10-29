@@ -33,7 +33,7 @@ comment  = "//" { any char except newline } ;
 ```
 
 - **Keywords:** `let`
-- **Punctuation:** `=` `;` `+` `.` `(` `)` `,`
+- **Punctuation:** `=` `;` `+` `-` `.` `(` `)` `,`
 - Whitespace and comments are skipped between tokens.
 
 **Dice and value words.** A word that is exactly `d` + digits or `v` + digits is a `DICE` or `VALUE`
@@ -44,6 +44,7 @@ Words like `d4x` or `v1a` are ordinary identifiers.
 |---|---|
 | `2d4` | `DICE(2, 4)` |
 | `d20+5` | `DICE(1, 20)` `+` `NUMBER(5)` |
+| `5d12-2d4` | `DICE(5, 12)` `-` `DICE(2, 4)` |
 | `v17` | `VALUE(17)` |
 | `dmg.at_least` | `IDENT(dmg)` `.` `IDENT(at_least)` |
 
@@ -61,7 +62,7 @@ expr      = let_expr
 
 let_expr  = "let" IDENT "=" expr ;          (* binds IDENT; evaluates to the bound value *)
 
-sum       = postfix { "+" postfix } ;       (* left-associative: a + b + c = (a + b) + c *)
+sum       = postfix { ( "+" | "-" ) postfix } ;   (* left-associative: a - b + c = (a - b) + c *)
 
 postfix   = primary { "." IDENT             (* member:  dmg.mean *)
                     | "(" [ args ] ")" } ;  (* call:    print(x), dmg.roll(3) *)
@@ -79,12 +80,14 @@ Precedence, lowest to highest:
 | level | operators | example | parses as |
 |---|---|---|---|
 | 0 | `let x =` (prefix) | `let x = d20 + 5` | `let x = (d20 + 5)` |
-| 1 | `+` (infix, left) | `d20 + 5` | `(d20) + 5` |
+| 1 | `+` `-` (infix, left) | `5d12 - 2d4 + 3` | `((5d12) - (2d4)) + 3` |
 | 2 | `.name`, `(args)` (postfix, left) | `dmg.roll(3)` | `((dmg).roll)(3)` |
 
 So `d20 + 5.min` parses as `d20 + (5.min)`. Use `(d20 + 5).min` for the minimum of the total.
 
-`let` takes everything to its right, so it can't appear inside a `+` without parentheses:
+`-` is only infix. There is no negation yet, so `-2d4` alone is an error.
+
+`let` takes everything to its right, so it can't appear inside a `+` or `-` without parentheses:
 `1 + let x = 2` is an error, but `1 + (let x = 2)` is valid and evaluates to `3`.
 
 ### 3.1 Semicolons and the program result
@@ -113,14 +116,31 @@ in v0.1.
 
 | type | made by | example |
 |---|---|---|
-| `number` | `NUMBER`, `.mean`, `.min`, `.max`, `.sum`, `.roll()` | `5` |
-| `dice` | `DICE`, `dice + dice`, `dice + number` | `2d4`, `d20+5` |
+| `number` | `NUMBER`, `.mean`, `.min`, `.max`, `.sum`, `.roll()`, `number ± number` | `5` |
+| `dice` | `DICE`, any `+` / `-` with a `dice` on either side | `2d4`, `d20+5`, `5d12-2d4` |
 | `value` | `VALUE` | `v17` |
 | `table` | `.at_least`, `.at_most` | |
 | `roll` | `.roll_values()` | prints `[2, 4] - 6` |
 | `list` | `roll.values` | `[2, 4]` |
 | `bool` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
 | `nil` | `expr;`, `print(x)` | prints nothing |
+
+### 4.1.1 Dice arithmetic
+
+`+` and `-` combine any mix of `dice` and `number`, in any order and any number of terms.
+The result's outcomes are every possible sum or difference, weighted by probability.
+
+| expression | outcomes | label |
+|---|---|---|
+| `5d12 - 2d4` | -3 to 58 | `5d12-2d4` |
+| `d20 + 5 - 1d4` | 2 to 24 | `1d20+5-1d4` |
+| `10 - d6` | 4 to 9 | `10-1d6` |
+| `1d4 - 2d4` | -7 to 2 | `1d4-2d4` |
+
+- Outcomes can be negative or zero. Tables list them in ascending order.
+- `value` (`v17`) can't be used with `+` / `-` yet.
+- The label is the expression with spaces removed and every die written with a count (`d20` → `1d20`).
+  This is a guess; see Q3.
 
 ### 4.2 Functions
 
