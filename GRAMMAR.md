@@ -51,16 +51,17 @@ Words like `d4x` or `v1a` are ordinary identifiers.
 
 ## 3. Syntax
 
+Everything is an expression. There are no statements.
+
 ```ebnf
-program   = { stmt } ;
+program   = { expr ";" } [ expr ] ;         (* last expr without ';' = program result *)
 
-stmt      = let_stmt
-          | expr_stmt ;
+expr      = let_expr
+          | sum ;
 
-let_stmt  = "let" IDENT "=" expr ";" ;
-expr_stmt = expr ";" ;                      (* e.g. print(dmg); *)
+let_expr  = "let" IDENT "=" expr ;          (* binds IDENT; evaluates to the bound value *)
 
-expr      = postfix { "+" postfix } ;       (* left-associative: a + b + c = (a + b) + c *)
+sum       = postfix { "+" postfix } ;       (* left-associative: a + b + c = (a + b) + c *)
 
 postfix   = primary { "." IDENT             (* member:  dmg.mean *)
                     | "(" [ args ] ")" } ;  (* call:    print(x), dmg.roll(3) *)
@@ -77,10 +78,29 @@ Precedence, lowest to highest:
 
 | level | operators | example | parses as |
 |---|---|---|---|
+| 0 | `let x =` (prefix) | `let x = d20 + 5` | `let x = (d20 + 5)` |
 | 1 | `+` (infix, left) | `d20 + 5` | `(d20) + 5` |
 | 2 | `.name`, `(args)` (postfix, left) | `dmg.roll(3)` | `((dmg).roll)(3)` |
 
 So `d20 + 5.min` parses as `d20 + (5.min)`. Use `(d20 + 5).min` for the minimum of the total.
+
+`let` takes everything to its right, so it can't appear inside a `+` without parentheses:
+`1 + let x = 2` is an error, but `1 + (let x = 2)` is valid and evaluates to `3`.
+
+### 3.1 Semicolons and the program result
+
+- `;` separates expressions. By convention, put one at the end of each line.
+- `;` discards a value. An expression followed by `;` produces `nil`.
+- The program's result is its last expression. It is written to stdout using the formats in 4.4.
+  If the program ends with `;`, the result is `nil` and nothing is written.
+
+| program | stdout |
+|---|---|
+| `2d4.roll()` | `5` (the roll) |
+| `2d4.roll();` | nothing (result is `nil`) |
+| `print(2d4.roll())` | `5`, printed by `print`. `print` returns `nil`, so nothing more is written. |
+| `print(let outcome = dmg.roll_values());` | `[2, 4] - 6` |
+| `let outcome = dmg.roll_values(); print(outcome);` | `[2, 4] - 6` (same as above) |
 
 ---
 
@@ -97,15 +117,16 @@ in v0.1.
 | `dice` | `DICE`, `dice + dice`, `dice + number` | `2d4`, `d20+5` |
 | `value` | `VALUE` | `v17` |
 | `table` | `.at_least`, `.at_most` | |
-| `roll` | `.roll_values()` | |
+| `roll` | `.roll_values()` | prints `[2, 4] - 6` |
 | `list` | `roll.values` | `[2, 4]` |
 | `bool` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
+| `nil` | `expr;`, `print(x)` | prints nothing |
 
 ### 4.2 Functions
 
-| name | meaning |
-|---|---|
-| `print(x)` | print `x` (formats in 4.4) |
+| name | returns | meaning |
+|---|---|---|
+| `print(x)` | `nil` | print `x` (formats in 4.4) |
 
 ### 4.3 Members
 
@@ -140,7 +161,7 @@ which is the dice's notation and the report kind, and ends with a `---` line:
 
 - A table row is the outcome, 4 spaces, then the percentage with 2 decimals.
 - Plain results print with no label or separator: a `number` prints as `4`, a `bool` as `success` / `fail`,
-  and a `list` as `[2, 4]`.
+  a `list` as `[2, 4]`, and a `roll` as its values, ` - `, then its sum: `[2, 4] - 6`.
 
 ---
 
@@ -167,6 +188,8 @@ let save = d20+5;
 
 print(dc.roll_against(save)); // success if save >= 17
 ```
+
+The program ends with `;`, so its result is `nil`. Everything below comes from `print`.
 
 Output (the last five lines are random):
 
@@ -215,8 +238,9 @@ success
 
 ## 6. Open questions
 
-- **Q1: Semicolons.** Your original example left the `;` off `print(outcome.values)` and `print(outcome.sum)`.
-  This spec requires `;` and adds them. Should semicolons be optional?
+- **Q1: How `nil` shows up.** If the program's result is `nil`, does stdout show nothing (this spec) or the
+  word `nil`? Relatedly, should `print(x)` return `nil` (this spec) or `x`? If it returned `x`, a final
+  `print(x)` with no `;` would write `x` twice.
 - **Q2: `roll_against` ties.** Is meeting the DC a success (`save >= 17`, as in D&D), or must the roll beat it?
 - **Q3: Labels for combined dice.** What should `print(d20+5)` show as its label: `d20+5`, `1d20+5`, or
   the variable name `save`?
