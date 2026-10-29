@@ -1,13 +1,7 @@
-# dice-lang grammar (draft v0)
+# dice-lang grammar (v0.1)
 
-A small language for rolling dice and computing exact probability distributions.
-It takes its ideas from AnyDice, but the syntax follows C-family languages, mainly TypeScript and Rust.
-
-**Design goals**
-- Code should look familiar to TS/Rust developers: `let`, `fn`, braces, `;`, `if`/`match` as expressions.
-- Dice notation is part of the syntax: `3d6`, `d20`, `4d6 kh 3`, `d[1, 1, 2, 3]`.
-- Every value is a distribution. `d20 >= 15` is the *probability* of rolling 15 or higher, not a yes/no answer.
-- Optional type annotations decide when a function is evaluated once per outcome of a die (AnyDice's `n` vs `d` parameters).
+A small language for rolling dice and computing their probabilities.
+This version only covers enough to run the program in section 5. More features will be added later.
 
 ---
 
@@ -25,280 +19,207 @@ The grammar uses EBNF:
 | `UPPER` | a token produced by the lexer (section 2) |
 | `(* ... *)` | comment |
 
-Expressions are **not** written as nested EBNF rules. They're defined by the precedence table
-in section 4, which is easier to read and maps directly onto the parser.
-
 ---
 
-## 2. Lexical grammar (tokens)
+## 2. Tokens
 
 ```ebnf
-NUMBER   = digit { digit } ;                      (* integers only: 0, 6, 100 *)
-STRING   = '"' { any char except '"' or newline | '\"' } '"' ;
-IDENT    = (letter | "_") { letter | digit | "_" } ;   (* minus keywords and dice words *)
-comment  = "//" { any char } newline
-         | "/*" { any char } "*/" ;
+DICE     = [ digits ] "d" digits ;          (* 2d4, d20  (no count = 1) *)
+VALUE    = "v" digits ;                     (* v17: a fixed target value, e.g. a DC *)
+NUMBER   = digits ;                         (* 3, 5 *)
+IDENT    = ( letter | "_" ) { letter | digit | "_" } ;
+digits   = digit { digit } ;
+comment  = "//" { any char except newline } ;
 ```
 
-Whitespace and comments are ignored between tokens.
+- **Keywords:** `let`
+- **Punctuation:** `=` `;` `+` `.` `(` `)` `,`
+- Whitespace and comments are skipped between tokens.
 
-**Keywords (reserved):**
-`let const fn return if else match for in output as true false int dice seq bool`
-
-**Punctuation:**
-`( ) { } [ ] , ; : . => -> .. ..= + - * / % == != < <= > >= && || ! = += -= *= /= | _`
-
-### Dice words
-
-This one lexer rule makes `3d6`, `d20`, and `4d6kh3` work without spaces, while
-names like `damage` and `dex` stay ordinary identifiers.
-
-1. A number stops at the first letter, so `3d6` lexes as `3` and then the word `d6`.
-2. A word that matches `(d | kh | kl | dh | dl)` followed by **digits only** is split into an
-   operator and a number:
+**Dice and value words.** A word that is exactly `d` + digits or `v` + digits is a `DICE` or `VALUE`
+token, not an identifier. That means `d20` and `v17` are literals, while `dmg`, `dc` and `save` are names.
+Words like `d4x` or `v1a` are ordinary identifiers.
 
 | source | tokens |
 |---|---|
-| `3d6` | `3` `d` `6` |
-| `d20` | `d` `20` |
-| `4d6kh3` | `4` `d` `6` `kh` `3` |
-| `d[1,2,3]` | `d` `[` `1` `,` ... |
-| `(n)d6`, `n d 6` | `(` `n` `)` `d` `6` / `n` `d` `6` |
-| `damage`, `dex`, `khan` | one `IDENT` each |
-| `d6x` | `IDENT` (not digits only), see open question Q4 |
-
-As a result, `d`, `kh`, `kl`, `dh`, `dl` (and `d6`, `d20`, ...) can't be used as variable names.
+| `2d4` | `DICE(2, 4)` |
+| `d20+5` | `DICE(1, 20)` `+` `NUMBER(5)` |
+| `v17` | `VALUE(17)` |
+| `dmg.at_least` | `IDENT(dmg)` `.` `IDENT(at_least)` |
 
 ---
 
-## 3. Syntactic grammar
+## 3. Syntax
 
 ```ebnf
-(* ---------- program structure ---------- *)
-program     = { item } ;
-item        = fn_decl | stmt ;                    (* functions are top-level only *)
+program   = { stmt } ;
 
-fn_decl     = "fn" IDENT "(" [ params ] ")" [ "->" type ] block ;
-params      = param { "," param } [ "," ] ;
-param       = IDENT [ ":" type ] ;                (* no type = accept anything as-is *)
-type        = "int" | "dice" | "seq" | "bool" ;
+stmt      = let_stmt
+          | expr_stmt ;
 
-(* ---------- statements ---------- *)
-stmt        = let_stmt
-            | assign_stmt
-            | output_stmt
-            | return_stmt
-            | for_stmt
-            | expr_stmt ;
+let_stmt  = "let" IDENT "=" expr ";" ;
+expr_stmt = expr ";" ;                      (* e.g. print(dmg); *)
 
-let_stmt    = ( "let" | "const" ) IDENT [ ":" type ] "=" expr ";" ;
-assign_stmt = IDENT ( "=" | "+=" | "-=" | "*=" | "/=" ) expr ";" ;  (* `let` vars only *)
-output_stmt = "output" expr [ "as" STRING ] ";" ;  (* print a distribution report *)
-return_stmt = "return" [ expr ] ";" ;
-for_stmt    = "for" IDENT "in" expr block ;        (* iterate a range or seq *)
-expr_stmt   = block_like                           (* no ';' needed after a block *)
-            | expr ";" ;
+expr      = postfix { "+" postfix } ;       (* left-associative: a + b + c = (a + b) + c *)
 
-(* ---------- blocks and block-like expressions ---------- *)
-block       = "{" { stmt } [ expr ] "}" ;          (* trailing expr, no ';' = block's value *)
-block_like  = block | if_expr | match_expr ;
+postfix   = primary { "." IDENT             (* member:  dmg.mean *)
+                    | "(" [ args ] ")" } ;  (* call:    print(x), dmg.roll(3) *)
+args      = expr { "," expr } ;
 
-if_expr     = "if" expr block [ "else" ( if_expr | block ) ] ;
-
-match_expr  = "match" expr "{" [ arm { "," arm } [ "," ] ] "}" ;
-arm         = pattern { "|" pattern } "=>" expr ;
-pattern     = int_lit [ ( ".." | "..=" ) int_lit ] (* 1, 2..=19 *)
-            | "_" ;                                (* wildcard *)
-int_lit     = [ "-" ] NUMBER ;
-
-(* ---------- expressions (operators: see section 4) ---------- *)
-expr        = (* see the precedence table *) ;
-
-primary     = NUMBER
-            | STRING
-            | "true" | "false"
-            | IDENT
-            | "(" expr ")"
-            | seq_lit
-            | block_like ;
-
-seq_lit     = "[" [ expr { "," expr } [ "," ] ] "]" ;   (* ranges inside are spread: [1..=3, 6] = [1,2,3,6] *)
-args        = [ expr { "," expr } [ "," ] ] ;
+primary   = DICE
+          | VALUE
+          | NUMBER
+          | IDENT
+          | "(" expr ")" ;
 ```
 
-**The block-statement rule (same as Rust):** if a statement *starts* with `{`, `if`, or `match`,
-that block ends the statement. So
+Precedence, lowest to highest:
 
-```
-if x > 3 { 1 } else { 2 }
-- 1;
-```
+| level | operators | example | parses as |
+|---|---|---|---|
+| 1 | `+` (infix, left) | `d20 + 5` | `(d20) + 5` |
+| 2 | `.name`, `(args)` (postfix, left) | `dmg.roll(3)` | `((dmg).roll)(3)` |
 
-is two statements: the `if`, then `-1;`. Wrap it in parentheses if you mean `(if ...) - 1`.
+So `d20 + 5.min` parses as `d20 + (5.min)`. Use `(d20 + 5).min` for the minimum of the total.
 
 ---
 
-## 4. Operators and precedence
+## 4. Built-ins
 
-Lowest to highest. A higher row binds tighter. Operators are left-associative unless the
-table says otherwise.
+The grammar treats every name the same way. This section lists the names that actually mean something
+in v0.1.
 
-| bp | operators | kind | associativity | example | parses as |
-|---|---|---|---|---|---|
-| 1 | `..` `..=` | infix | none | `1..=n + 1` | `1..=(n + 1)` |
-| 2 | `\|\|` | infix | left | `a \|\| b && c` | `a \|\| (b && c)` |
-| 3 | `&&` | infix | left | `x > 1 && x < 5` | `(x > 1) && (x < 5)` |
-| 4 | `==` `!=` `<` `<=` `>` `>=` | infix | none | `d20 + 5 >= 15` | `((d20) + 5) >= 15` |
-| 5 | `+` `-` | infix | left | `2d6 + 1` | `(2d6) + 1` |
-| 6 | `*` `/` `%` | infix | left | `2 * d6 + 1` | `(2 * (d6)) + 1` |
-| 7 | `kh` `kl` `dh` `dl` | infix | left | `4d6 kh 3 + 2` | `((4d6) kh 3) + 2` |
-| 8 | `d` | infix and prefix | left | `2d6d4`, `d20` | `(2d6)d4`, `d(20)` |
-| 9 | `-` `!` | prefix | n/a | `-d4`, `!(x > 3)` | `-(d4)` |
-| 10 | `(args)` `[i]` `.name(args)` | postfix | left | `f(x)[0]`, `x.sum()` | `(f(x))[0]`, `(x).sum()` |
+### 4.1 Types
 
-Notes:
-- **Non-associative** means chaining is a syntax error: `a < b < c` is rejected, and so is `1..2..3`.
-- **`d` binds tighter than arithmetic**, so `2d6 * 2` doubles the total of a 2d6 roll.
-  Use `2 * d6` or `(2 * 2)d6` when you want something else.
-- **The right side of `d`** can be a number, a name, a parenthesized expression, or a seq:
-  `d6`, `n d sides`, `d(x + 1)`, `d[1, 1, 2, 3]`.
-- **Keep/drop** read as "*pool* keep-highest *count*": `kh` = keep highest, `kl` = keep lowest,
-  `dh` = drop highest, `dl` = drop lowest.
-- **Postfix binds tightest**, so `3d6[0]` parses as `3d(6[0])`. Write `(3d6)[0]`.
-  See open question Q5.
+| type | made by | example |
+|---|---|---|
+| `number` | `NUMBER`, `.mean`, `.min`, `.max`, `.sum`, `.roll()` | `5` |
+| `dice` | `DICE`, `dice + dice`, `dice + number` | `2d4`, `d20+5` |
+| `value` | `VALUE` | `v17` |
+| `table` | `.at_least`, `.at_most` | |
+| `roll` | `.roll_values()` | |
+| `list` | `roll.values` | `[2, 4]` |
+| `bool` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
 
-### What the parser produces
+### 4.2 Functions
 
-Every expression becomes a tree. For example, `4d6 kh 3 + d4 >= 12`:
+| name | meaning |
+|---|---|
+| `print(x)` | print `x` (formats in 4.4) |
+
+### 4.3 Members
+
+| on | member | returns | meaning |
+|---|---|---|---|
+| `dice` | `.at_least` | `table` | P(outcome ≥ n) for each n |
+| `dice` | `.at_most` | `table` | P(outcome ≤ n) for each n |
+| `dice` | `.mean` | `number` | expected value |
+| `dice` | `.min` | `number` | smallest possible outcome |
+| `dice` | `.max` | `number` | largest possible outcome |
+| `dice` | `.roll()` | `number` | roll once and return the total |
+| `dice` | `.roll(n)` | `bool` | roll once; success if the total equals `n` |
+| `dice` | `.roll_values()` | `roll` | roll once, keeping each die |
+| `roll` | `.values` | `list` | each die's result, e.g. `[2, 4]` |
+| `roll` | `.sum` | `number` | total of `.values` |
+| `value` | `.roll_against(d)` | `bool` | roll `d`; success if the total ≥ this value |
+
+### 4.4 Print formats
+
+A distribution report (`dice`, `.at_least`, `.at_most`, `.mean`, `.min`, `.max`) starts with a label,
+which is the dice's notation and the report kind, and ends with a `---` line:
 
 ```
-            >=
-          /    \
-         +      12
-       /   \
-     kh     d (prefix)
-    /  \     \
-   d    3     4
-  / \
- 4   6
+2d4 (normal):
+2    6.25
+3    12.50
+...
+---
+2d4 (mean): 5
+---
 ```
+
+- A table row is the outcome, 4 spaces, then the percentage with 2 decimals.
+- Plain results print with no label or separator: a `number` prints as `4`, a `bool` as `success` / `fail`,
+  and a `list` as `[2, 4]`.
 
 ---
 
-## 5. Example programs
+## 5. Example program
 
-### 5.1 Basic rolls
-```rust
-output 3d6 as "3d6";
-output d20 + 5 as "attack bonus +5";
-output 2d6 + 1d8 + 3 as "greatsword + bonus";
+```dice
+let dmg = 2d4;
+
+print(dmg);           // probability of each outcome
+print(dmg.at_least);  // probability of rolling at least each outcome
+print(dmg.at_most);   // probability of rolling at most each outcome
+print(dmg.mean);
+print(dmg.min);
+print(dmg.max);
+
+print(dmg.roll());        // a random total
+print(dmg.roll(3));       // success if the roll is exactly 3
+let outcome = dmg.roll_values();
+print(outcome.values);
+print(outcome.sum);
+
+let dc = v17;
+let save = d20+5;
+
+print(dc.roll_against(save)); // success if save >= 17
 ```
 
-### 5.2 Ability scores: 4d6, drop lowest
-```rust
-let stat = 4d6 kh 3;   // same as 4d6 dl 1
-output stat as "ability score";
+Output (the last five lines are random):
+
 ```
-
-### 5.3 Advantage and disadvantage
-```rust
-output 2d20 kh 1 as "advantage";
-output 2d20 kl 1 as "disadvantage";
+2d4 (normal):
+2    6.25
+3    12.50
+4    18.75
+5    25.00
+6    18.75
+7    12.50
+8    6.25
+---
+2d4 (at_least):
+2    100.00
+3    93.75
+4    81.25
+5    62.50
+6    37.50
+7    18.75
+8    6.25
+---
+2d4 (at_most):
+2    6.25
+3    18.75
+4    37.50
+5    62.50
+6    81.25
+7    93.75
+8    100.00
+---
+2d4 (mean): 5
+---
+2d4 (min): 2
+---
+2d4 (max): 8
+---
+4
+fail
+[2, 4]
+6
+success
 ```
-
-### 5.4 Hit chance (comparison = probability)
-```rust
-const ac = 15;
-output d20 + 5 >= ac as "chance to hit AC 15";
-```
-
-### 5.5 Custom dice faces
-```rust
-let fudge = d[-1, 0, 1];
-output 4 d fudge as "fate dice";
-
-let weird = d[1..=4, 10];   // faces 1, 2, 3, 4, 10
-output weird;
-```
-
-### 5.6 Crits with `match`
-```rust
-fn attack(roll: int) -> dice {
-    match roll {
-        1 => 0,              // natural 1: miss
-        20 => 2d8 + 3,       // crit: double dice
-        2..=19 => if roll + 5 >= 15 { 1d8 + 3 } else { 0 },
-    }
-}
-
-output attack(d20) as "damage per attack";
-```
-`roll: int` receives a `dice` argument (`d20`), so `attack` runs once for each face
-and the results are combined using each face's probability. This is AnyDice's
-`function: attack ROLL:n` behavior.
-
-### 5.7 Exploding dice via recursion
-```rust
-fn explode(roll: int, depth: int) -> dice {
-    if roll == 6 && depth > 0 {
-        roll + explode(d6, depth - 1)
-    } else {
-        roll
-    }
-}
-
-output explode(d6, 3) as "exploding d6 (3 deep)";
-```
-
-### 5.8 Loops and mutation
-```rust
-let total = 0;
-for i in 1..=3 {
-    total += i d 6;          // 1d6 + 2d6 + 3d6
-}
-output total;
-```
-
-### 5.9 Indexing a pool (sorted highest first)
-```rust
-let pool = 3d6;
-output pool[0] as "highest of 3d6";
-output pool[1] as "middle of 3d6";
-output (3d6)[2] as "lowest of 3d6";
-```
-
-### 5.10 Counting successes
-```rust
-fn successes(pool: seq, target: int) -> int {
-    let n = 0;
-    for die in pool {
-        n += die >= target;  // true counts as 1
-    }
-    n
-}
-
-output successes(6d10, 8) as "successes on 6d10, TN 8";
-```
-`pool: seq` makes `6d10` arrive as each possible sorted roll, e.g. `[10, 9, 8, 3, 2, 1]`, one at a time.
 
 ---
 
 ## 6. Open questions
 
-Each of these is a choice for you to make.
-
-- **Q1: Semicolons.** Required after every non-block statement (Rust). Should they be optional, as in TS? That
-  would make the grammar depend on newlines and the parser harder to write.
-- **Q2: The `output` keyword.** `output x as "label";` vs. a function call `output(x, "label")` / `print(x)`.
-  A keyword is closer to AnyDice; a function call is more TS-like.
-- **Q3: Types.** Is `int | dice | seq | bool` the right set? Should `bool` exist, or is everything an int
-  (comparisons give 0/1)? Do you want type annotations on `let`?
-- **Q4: Dice words.** `d`, `kh`, `kl`, `dh`, `dl` become reserved. Is that acceptable, or should keep/drop be
-  methods (`(4d6).keep_highest(3)`)? Should `d6x` be an error instead of an identifier?
-- **Q5: Indexing.** `(3d6)[0]` needs parentheses, and index 0 = highest. Do you want highest-first or lowest-first,
-  0-based or 1-based (AnyDice is 1-based, written `1@3d6`)? Should `@` be an infix operator for this?
-- **Q6: Numbers.** Integers only, with `/` rounding toward zero (like AnyDice)? Or do you want fractions?
-- **Q7: Exploding / rerolls.** Built-in syntax (`d6!`, `d6 r 1`) or library functions (`explode(d6)`)?
-- **Q8: Loops.** Only `for ... in` (always ends). Should there be `while`, `break`, `continue`?
-- **Q9: Settings.** AnyDice has `set "explode depth" to 3`. Should there be a syntax for config like that?
-- **Q10: Mutability.** `let` is mutable and `const` is not (TS). Or Rust's `let` / `let mut`?
+- **Q1: Semicolons.** Your original example left the `;` off `print(outcome.values)` and `print(outcome.sum)`.
+  This spec requires `;` and adds them. Should semicolons be optional?
+- **Q2: `roll_against` ties.** Is meeting the DC a success (`save >= 17`, as in D&D), or must the roll beat it?
+- **Q3: Labels for combined dice.** What should `print(d20+5)` show as its label: `d20+5`, `1d20+5`, or
+  the variable name `save`?
+- **Q4: Non-whole means.** `2d4` has mean 5. How should `print(d20.mean)` show 10.5: as `10.5` or `10.50`?
+- **Q5: Trailing spaces.** Your sample output had trailing spaces after each table row. I treated them as
+  accidental and left them out.
