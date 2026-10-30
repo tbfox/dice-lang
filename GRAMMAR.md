@@ -121,8 +121,8 @@ Built-in names (section 4) can't be bound: `let print = 1` is an error (E0006).
 | `2d4.roll()` | `5` (the roll) |
 | `2d4.roll();` | `nil` |
 | `print(2d4.roll())` | `5` from `print`, then `nil`, because `print` returns `nil` |
-| `print(let outcome = dmg.roll_values());` | `d4 [2,4]`, then `nil` |
-| `let outcome = dmg.roll_values(); print(outcome);` | `d4 [2,4]`, then `nil` (same as above) |
+| `print(let outcome = dmg.roll_values());` | `d4 [2, 4]`, then `nil` |
+| `let outcome = dmg.roll_values(); print(outcome);` | `d4 [2, 4]`, then `nil` (same as above) |
 | (empty) | `nil` |
 
 ---
@@ -136,11 +136,11 @@ in v0.1.
 
 | type | made by | example |
 |---|---|---|
-| `number` | `NUMBER`, `.mean`, `.min`, `.max`, `.sum`, `.roll()`, `number ± number` | `5`, `15.5` |
+| `number` | `NUMBER`, `.mean`, `.min`, `.max`, `.sum()`, `.roll()`, `number ± number` | `5`, `15.5` |
 | `dice` | `DICE`, any `+` / `-` with a `dice` on either side | `2d4`, `d20+5`, `5d12-2d4` |
 | `value` | `VALUE` | prints `v17` |
 | `table` | `.at_least`, `.at_most` | |
-| `roll` | `.roll_values()` | prints `d4 [2,4]` (see 4.4) |
+| `roll` | `.roll_values()` | prints `d4 [2, 4]` (see 4.4) |
 | `list` | `roll.values` | `[2, 4]` |
 | `bool` | `true`, `false` | prints `true` / `false` |
 | `result` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
@@ -153,9 +153,10 @@ numbers only.
 A number is either a **constant** or **live**:
 
 - A **constant** is a number literal written next to dice, like the `5` in `d6 + 5`. It changes the
-  dice expression itself, so `d6 + 5` is still `dice` with its own probabilities.
+  dice expression itself, so `d6 + 5` is still `dice` with its own probabilities. `+` / `-` between
+  literals only is also a constant and reduces to one number: `d6 + (2 + 3)` is `1d6+5`.
 - A **live** number is any other number: one read from a variable, or made by `.mean`, `.min`, `.max`,
-  `.sum`, `.roll()` or `number ± number`. It's a result, not part of a dice expression.
+  `.sum()`, `.roll()` or `+` / `-` with a live number. It's a result, not part of a dice expression.
 
 ### 4.1.1 Dice arithmetic
 
@@ -182,6 +183,7 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 | `let dmg = 2d4;` then `dmg + 1` | `2d4+1` |
 | `let a = d4 + 1;` then `10 + a` | `10+1d4+1` |
 | `let a = d4 + 1;` then `10 - a` | `10-(1d4+1)` |
+| `d6 + (2 + 3)` | `1d6+5` |
 | `(d20 + 5) - 2d4` | `1d20+5-2d4` |
 | `2d4 - (d6 - 1)` | `2d4-(1d6-1)` |
 
@@ -204,7 +206,7 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 | `dice` | `.roll(n)` | `result` | roll once; success if the total equals `n` |
 | `dice` | `.roll_values()` | `roll` | roll once, keeping each die's value |
 | `roll` | `.values` | `list` | the rolled value of every die, e.g. `[2, 4]` |
-| `roll` | `.sum` | `number` | total of every die and the constant: `d.roll_values().sum` is the same as `d.roll()` |
+| `roll` | `.sum()` | `number` | total of every die and the constant: `d.roll_values().sum()` is the same as `d.roll()` |
 | `number` | `.debug` | `debug` | the number with its label (see 4.4) |
 | `value` | `.roll_against(d, must_exceed = false)` | `result` | roll `d`; see below (`must_exceed` is a `bool`) |
 
@@ -245,6 +247,9 @@ Numbers that don't come from `.mean`, `.min` or `.max` have no notation or kind,
 | `5.debug` | `nil : 5` | a number literal: `nil` |
 | `dmg.roll().debug` | `dmg.roll() : 5` | a `.roll()` call: the call re-printed with spaces removed, so `dmg.roll( ).debug` prints the same |
 | `(dmg.mean + 1).debug` | `__exp__ : 6` | `number ± number`: `__exp__` |
+| `outcome.sum().debug` | `nil : 6` | anything else: `nil` |
+| `let n = 5; n.debug` | `nil : 5` | a number read from a variable: `nil` |
+| `let m = dmg.mean; m.debug` | `nil : 5` | even when it first came from `.mean` |
 
 The name is always the variable the dice is read from, even when it was copied from another variable:
 
@@ -281,8 +286,8 @@ a : 2d4 (normal):
   `(2d4 + 2d8 - 2).roll_values()` prints:
 
   ```
-  d4 [1,3]
-  d8 [4,6]
+  d4 [1, 3]
+  d8 [4, 6]
   c  -2
   ```
 - A `result` has no other data yet. Extra details may be attached to it later.
@@ -305,7 +310,7 @@ print(dmg.roll());        // a random total
 print(dmg.roll(3));       // success if the roll is exactly 3
 let outcome = dmg.roll_values();
 print(outcome.values);
-print(outcome.sum);
+print(outcome.sum());
 
 let dc = v17;
 let save = d20+5;
@@ -403,6 +408,7 @@ error: aborting due to 2 previous errors
 - `= note:` and `= help:` lines are optional.
 - Errors are separated by a blank line, in source order.
 - The last line is `error: aborting due to N previous errors` (`1 previous error` when there's one).
+- Stack traces will be added later, after scopes.
 
 | code | error | example |
 |---|---|---|
@@ -421,10 +427,4 @@ error: aborting due to 2 previous errors
 
 ## 8. Open questions
 
-- **`.debug` on other numbers.** What labels do `outcome.sum.debug` and `let n = 5; n.debug` get?
-- **`.debug` name after copying.** For `let m = dmg.mean; print(m.debug)`, is the label `m : 2d4 (mean): 5`
-  (the variable it's read from, like dice) or `dmg : 2d4 (mean): 5` (the dice it came from)?
-- **Constant arithmetic.** Is `d6 + (2 + 3)` allowed, since `2 + 3` uses only literals?
-- **`.sum` or `.sum()`.** `.sum` is a field in 4.3. Should it be a method instead?
-- **List spacing.** A `roll` prints `[1,3]`, but a `list` prints `[2, 4]`. Should they match?
-- **Error stack traces.** When should errors include one? Probably once there are user functions.
+None right now.
