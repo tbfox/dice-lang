@@ -1,0 +1,15 @@
+error[E0005]: undefined variable `dmgg`
+ --> err_undefined.dice:3:7
+  |
+3 | print(dmgg.mean);
+  |       ^^^^ not defined
+  |
+  = help: did you mean `dmg`?
+
+error[E0003]: a die needs at least 2 sides
+ --> err_undefined.dice:5:11
+  |
+5 | let hit = 2d1;
+  |           ^^^ this die has 1 side
+
+error: aborting due to 2 previous errors

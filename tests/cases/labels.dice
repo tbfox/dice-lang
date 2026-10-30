@@ -1,0 +1,8 @@
+let dmg = 2d4;
+let a = dmg;
+print(dmg);
+print(a);
+print(a.at_most);
+print(d20 + 5);
+let t = dmg.at_least;
+t

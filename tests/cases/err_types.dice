@@ -1,0 +1,9 @@
+let dmg = 2d4;
+d6 + dmg.mean;
+let bonus = 5;
+d6 + bonus;
+v17 + 1;
+true - d4;
+dc.roll_against(dmg);
+v17.roll_against(5);
+dmg(1);

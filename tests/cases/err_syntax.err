@@ -1,0 +1,29 @@
+error[E0001]: expected a name after `let`, found `=`
+ --> err_syntax.dice:1:5
+  |
+1 | let = 5;
+  |     ^ expected a name
+
+error[E0001]: expected `;`, found `print`
+ --> err_syntax.dice:2:10
+  |
+2 | print(1) print(2);
+  |          ^^^^^ expected `;` here
+
+error[E0001]: expected an expression, found `-`
+ --> err_syntax.dice:3:1
+  |
+3 | -2d4;
+  | ^ expected an expression
+  |
+  = note: `-` is only infix; there is no negation yet
+
+error[E0001]: `let` needs parentheses here
+ --> err_syntax.dice:4:5
+  |
+4 | 1 + let x = 2
+  |     ^^^ `let` takes everything to its right
+  |
+  = help: wrap it in parentheses: `(let x = ...)`
+
+error: aborting due to 4 previous errors

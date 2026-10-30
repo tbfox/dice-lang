@@ -1,0 +1,37 @@
+error[E0008]: `mean` is a field, not a method
+ --> err_members.dice:2:5
+  |
+2 | dmg.mean();
+  |     ^^^^ can't be called
+  |
+  = help: remove the `()`: `.mean`
+
+error[E0008]: `roll` is a method, so it needs `()`
+ --> err_members.dice:3:5
+  |
+3 | dmg.roll;
+  |     ^^^^ not called
+  |
+  = help: use `.roll()`
+
+error[E0009]: no member `avg` on `dice`
+ --> err_members.dice:4:5
+  |
+4 | dmg.avg;
+  |     ^^^ unknown member
+
+error[E0009]: no member `min` on `number`
+ --> err_members.dice:5:3
+  |
+5 | 5.min;
+  |   ^^^ unknown member
+
+error[E0008]: `print` is a function, so it needs `()`
+ --> err_members.dice:6:1
+  |
+6 | print;
+  | ^^^^^ not called
+  |
+  = help: use `print(...)`
+
+error: aborting due to 5 previous errors

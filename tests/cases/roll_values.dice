@@ -1,0 +1,6 @@
+let r = (2d4 + 2d8 - 2).roll_values();
+print(r);
+print(r.values);
+print(r.sum());
+print(d12.roll_values());
+(3d6 + d12 + 1).roll_values()

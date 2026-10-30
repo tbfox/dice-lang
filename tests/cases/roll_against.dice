@@ -1,0 +1,8 @@
+let dc = v17;
+let save = d20 + 5;
+print(dc.roll_against(save));
+print(dc.roll_against(save, must_exceed = true));
+print(v0.roll_against(d4));
+print(v25.roll_against(d20 + 5, true));
+print(2d4.roll(3));
+2d4.roll(2d4.min)

@@ -1,0 +1,5 @@
+let dmg = 2d4;
+let x = 1;
+print(dmgg.mean);
+let y = 2;
+let hit = 2d1;

@@ -1,0 +1,50 @@
+error[E0007]: can't combine dice with a live number
+ --> err_types.dice:2:6
+  |
+2 | d6 + dmg.mean;
+  |      ^^^^^^^^ this is a live number
+  |
+  = note: only constants (number literals) can be added to or subtracted from dice
+
+error[E0007]: can't combine dice with a live number
+ --> err_types.dice:4:6
+  |
+4 | d6 + bonus;
+  |      ^^^^^ this is a live number
+  |
+  = note: `bonus` is a variable, so it's live
+  = note: only constants (number literals) can be added to or subtracted from dice
+
+error[E0007]: can't use `+` with `value` and `number`
+ --> err_types.dice:5:1
+  |
+5 | v17 + 1;
+  | ^^^ this is a `value`
+  |
+  = note: `value` can't be used with `+` / `-` yet
+
+error[E0007]: can't use `-` with `bool` and `dice`
+ --> err_types.dice:6:1
+  |
+6 | true - d4;
+  | ^^^^ this is a `bool`
+
+error[E0005]: undefined variable `dc`
+ --> err_types.dice:7:1
+  |
+7 | dc.roll_against(dmg);
+  | ^^ not defined
+
+error[E0007]: expected `dice` for `d`, found `number`
+ --> err_types.dice:8:18
+  |
+8 | v17.roll_against(5);
+  |                  ^ this is a `number`
+
+error[E0007]: `dmg` is not a function
+ --> err_types.dice:9:1
+  |
+9 | dmg(1);
+  | ^^^ this is a `dice`
+
+error: aborting due to 7 previous errors

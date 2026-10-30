@@ -1,0 +1,19 @@
+let dmg = 2d4;
+
+print(dmg);           // probability of each outcome
+print(dmg.at_least);  // probability of rolling at least each outcome
+print(dmg.at_most);   // probability of rolling at most each outcome
+print(dmg.mean);
+print(dmg.min);
+print(dmg.max);
+
+print(dmg.roll());        // a random total
+print(dmg.roll(3));       // success if the roll is exactly 3
+let outcome = dmg.roll_values();
+print(outcome.values);
+print(outcome.sum());
+
+let dc = v17;
+let save = d20+5;
+
+print(dc.roll_against(save)); // success if save >= 17

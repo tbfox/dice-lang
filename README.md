@@ -1,15 +1,20 @@
 # dice-lang
 
-To install dependencies:
+A small language for rolling dice and computing their probabilities. The language is defined in
+[GRAMMAR.md](GRAMMAR.md).
 
-```bash
-bun install
+```sh
+bun index.ts program.dice              # random rolls
+bun index.ts program.dice --seed       # rolls from the default seed (0)
+bun index.ts program.dice --seed=42    # rolls from seed 42
 ```
 
-To run:
+## Tests
 
-```bash
-bun run index.ts
+```sh
+bun test                # everything
+UPDATE=1 bun test       # rewrite tests/cases/*.out and *.err from the current output
 ```
 
-This project was created using `bun init` in bun v1.4.2. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+Each `tests/cases/<name>.dice` is run and compared with `<name>.out` (stdout) or `<name>.err` (stderr).
+An optional `<name>.args` holds `--seed=N`; otherwise the seed is 0.

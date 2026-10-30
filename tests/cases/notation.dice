@@ -1,0 +1,6 @@
+let a = d4 + 1;
+print(10 + a);
+print(10 - a);
+print(d6 + (2 + 3));
+print((d20 + 5) - 2d4);
+2d4 - (d6 - 1)

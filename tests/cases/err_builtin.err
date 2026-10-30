@@ -1,0 +1,7 @@
+error[E0006]: the identifier `print` is already defined
+ --> err_builtin.dice:1:5
+  |
+1 | let print = 1;
+  |     ^^^^^ `print` is a built-in
+
+error: aborting due to 1 previous error

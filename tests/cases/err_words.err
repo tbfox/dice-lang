@@ -1,0 +1,37 @@
+error[E0002]: invalid word `2d4x`
+ --> err_words.dice:1:7
+  |
+1 | print(2d4x);
+  |       ^^^^ a word starting with a digit must be a number or dice
+
+error[E0003]: a die needs at least 2 sides
+ --> err_words.dice:2:7
+  |
+2 | print(d0);
+  |       ^^ this die has 0 sides
+
+error[E0003]: dice need a count of at least 1
+ --> err_words.dice:3:7
+  |
+3 | print(0d6);
+  |       ^^^ this rolls 0 dice
+
+error[E0003]: a die needs at least 2 sides
+ --> err_words.dice:4:7
+  |
+4 | print(2d1);
+  |       ^^^ this die has 1 side
+
+error[E0001]: unexpected character `#`
+ --> err_words.dice:5:9
+  |
+5 | print(1 # 2)
+  |         ^ not part of the language
+
+error[E0001]: expected `)`, found `2`
+ --> err_words.dice:5:11
+  |
+5 | print(1 # 2)
+  |           ^ expected `)` to close the call
+
+error: aborting due to 6 previous errors

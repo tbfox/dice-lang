@@ -1,0 +1,6 @@
+let dmg = 2d4;
+dmg.mean();
+dmg.roll;
+dmg.avg;
+5.min;
+print;

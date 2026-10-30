@@ -1,0 +1,13 @@
+let dmg = 2d4;
+let outcome = dmg.roll_values();
+print(dmg.mean.debug);
+print((d20 + 5).mean.debug);
+print(5.debug);
+print(dmg.roll().debug);
+print(dmg . roll( ).debug);
+print((dmg.mean + 1).debug);
+print(outcome.sum().debug);
+let n = 5;
+print(n.debug);
+let m = dmg.mean;
+m.debug

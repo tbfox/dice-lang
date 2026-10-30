@@ -1,0 +1,39 @@
+error[E0010]: unknown argument `exceed`
+ --> err_args.dice:3:23
+  |
+3 | dc.roll_against(save, exceed = true);
+  |                       ^^^^^^ `.roll_against()` has no argument with this name
+
+error[E0010]: positional argument after a named one
+ --> err_args.dice:4:37
+  |
+4 | dc.roll_against(must_exceed = true, save);
+  |                                     ^^^^ positional argument
+  |
+  = help: put positional arguments before named ones
+
+error[E0010]: missing argument `d`
+ --> err_args.dice:5:1
+  |
+5 | dc.roll_against();
+  | ^^^^^^^^^^^^^^^^^ `.roll_against()` needs `d`
+
+error[E0010]: argument `must_exceed` is given twice
+ --> err_args.dice:6:43
+  |
+6 | dc.roll_against(save, must_exceed = true, must_exceed = false);
+  |                                           ^^^^^^^^^^^^^^^^^^^ already given
+
+error[E0010]: `print` takes 1 argument but 2 were given
+ --> err_args.dice:7:10
+  |
+7 | print(1, 2);
+  |          ^ unexpected argument
+
+error[E0010]: `.roll()` takes 1 argument but 2 were given
+ --> err_args.dice:8:14
+  |
+8 | save.roll(1, 2);
+  |              ^ unexpected argument
+
+error: aborting due to 6 previous errors

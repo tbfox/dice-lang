@@ -1,0 +1,7 @@
+error[E0004]: `__exp__` is a reserved name
+ --> err_reserved.dice:1:5
+  |
+1 | let __exp__ = 1;
+  |     ^^^^^^^ names starting with `__` belong to the language
+
+error: aborting due to 1 previous error

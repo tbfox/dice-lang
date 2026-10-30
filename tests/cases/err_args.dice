@@ -1,0 +1,8 @@
+let dc = v17;
+let save = d20;
+dc.roll_against(save, exceed = true);
+dc.roll_against(must_exceed = true, save);
+dc.roll_against();
+dc.roll_against(save, must_exceed = true, must_exceed = false);
+print(1, 2);
+save.roll(1, 2);
