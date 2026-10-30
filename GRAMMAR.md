@@ -131,6 +131,7 @@ in v0.1.
 | `bool` | `true`, `false` | prints `true` / `false` |
 | `result` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
 | `nil` | `expr;`, `print(x)` | prints `nil` |
+| `debug` | `number.debug` | prints `dmg : 2d4 (mean): 5` |
 
 ### 4.1.1 Dice arithmetic
 
@@ -169,6 +170,7 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 | `dice` | `.roll_values()` | `roll` | roll once, keeping each die |
 | `roll` | `.values` | `list` | each die's result, e.g. `[2, 4]` |
 | `roll` | `.sum` | `number` | total of `.values` |
+| `number` | `.debug` | `debug` | the number with its label (see 4.4) |
 | `value` | `.roll_against(d, must_exceed = false)` | `result` | roll `d`; see below (`must_exceed` is a `bool`) |
 
 **`roll_against`** rolls `d` once and compares the total to the value:
@@ -180,14 +182,18 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 
 ### 4.4 Print formats
 
-A distribution report (`dice`, `.at_least`, `.at_most`, `.mean`, `.min`, `.max`) starts with a label
+A distribution report (`dice`, `.at_least`, `.at_most`, `.debug`) starts with a label
 and ends with a `---` line. The label is:
 
 - `name : notation (kind)` when the dice is read from a variable: `print(save)` → `save : 1d20+5 (normal):`
 - `notation (kind)` otherwise: `print(d20 + 5)` → `1d20+5 (normal):`
 
 `kind` is `normal`, `at_least`, `at_most`, `mean`, `min` or `max`. A member access keeps the
-variable's name, so `print(dmg.mean)` → `dmg : 2d4 (mean): 5`.
+variable's name.
+
+`.mean`, `.min` and `.max` return a plain `number`, so `print(dmg.mean)` prints `5`. The number still
+remembers where it came from: `.debug` turns it into a report, so `print(dmg.mean.debug)` →
+`dmg : 2d4 (mean): 5`.
 
 The name is always the variable the dice is read from, even when it was copied from another variable:
 
@@ -204,7 +210,10 @@ dmg : 2d4 (normal):
 3    12.5
 ...
 ---
-dmg : 2d4 (mean): 5
+a : 2d4 (normal):
+2    6.25
+3    12.5
+...
 ---
 ```
 
@@ -212,7 +221,7 @@ dmg : 2d4 (mean): 5
   trailing zeros: `5`, `12.5`, `10.2345`, `100`.
 - A table row is the outcome, 4 spaces, then the percentage. Rows have no trailing spaces.
   Column alignment will be decided later.
-- Plain results print with no label or separator: a `bool` prints as `true` / `false`, a `result` as
+- Plain results print with no label or separator: a `number` prints as its value, a `bool` prints as `true` / `false`, a `result` as
   `success` / `fail`, a `list` as `[2, 4]`, a `roll` as its values, ` - `, then its sum (`[2, 4] - 6`),
   and `nil` as `nil`.
 - A `result` has no other data yet. Extra details may be attached to it later.
@@ -246,7 +255,7 @@ print(dc.roll_against(save)); // success if save >= 17
 Everything up to `success` comes from `print`. The program ends with `;`, so its result is `nil`,
 which is written as the last line.
 
-Output (lines 4 to 8 from the end are random):
+Output (lines 2 to 6 from the end are random):
 
 ```
 dmg : 2d4 (normal):
@@ -276,12 +285,9 @@ dmg : 2d4 (at_most):
 7    93.75
 8    100
 ---
-dmg : 2d4 (mean): 5
----
-dmg : 2d4 (min): 2
----
-dmg : 2d4 (max): 8
----
+5
+2
+8
 4
 fail
 [2, 4]
@@ -294,4 +300,7 @@ nil
 
 ## 6. Open questions
 
-None right now.
+- **`.debug` on a number with no origin.** `5.debug`, `dmg.roll().debug` and `(dmg.mean + 1).debug`
+  have no notation or kind to print. Is that an error, or does it print just the number?
+- **`.debug` name after copying.** For `let m = dmg.mean; print(m.debug)`, is the label `m : 2d4 (mean): 5`
+  (the variable it's read from, like dice) or `dmg : 2d4 (mean): 5` (the dice it came from)?
