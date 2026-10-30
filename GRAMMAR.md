@@ -195,6 +195,16 @@ variable's name.
 remembers where it came from: `.debug` turns it into a report, so `print(dmg.mean.debug)` →
 `dmg : 2d4 (mean): 5`.
 
+Numbers that don't come from `.mean`, `.min` or `.max` have no notation or kind, so `.debug` prints
+`label : value`:
+
+| expression | prints | label |
+|---|---|---|
+| `dmg.mean.debug` | `dmg : 2d4 (mean): 5` | from `.mean` / `.min` / `.max`: the full label above |
+| `5.debug` | `nil : 5` | a number literal: `nil` |
+| `dmg.roll().debug` | `dmg.roll() : 5` | a `.roll()` call: the call as written |
+| `(dmg.mean + 1).debug` | `exp : 6` | `number ± number`: `exp` |
+
 The name is always the variable the dice is read from, even when it was copied from another variable:
 
 ```dice
@@ -300,7 +310,6 @@ nil
 
 ## 6. Open questions
 
-- **`.debug` on a number with no origin.** `5.debug`, `dmg.roll().debug` and `(dmg.mean + 1).debug`
-  have no notation or kind to print. Is that an error, or does it print just the number?
+- **`.debug` on other numbers.** What labels do `outcome.sum.debug` and `let n = 5; n.debug` get?
 - **`.debug` name after copying.** For `let m = dmg.mean; print(m.debug)`, is the label `m : 2d4 (mean): 5`
   (the variable it's read from, like dice) or `dmg : 2d4 (mean): 5` (the dice it came from)?
