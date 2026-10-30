@@ -33,6 +33,8 @@ comment  = "//" { any char except newline } ;
 ```
 
 - **Keywords:** `let` `true` `false`
+- **Reserved names:** identifiers starting with `__` (such as `__exp__`) belong to the language.
+  Using one in source is an error.
 - **Punctuation:** `=` `;` `+` `-` `.` `(` `)` `,`
 - Whitespace and comments are skipped between tokens.
 
