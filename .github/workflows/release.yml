@@ -1,0 +1,70 @@
+# Builds standalone `dice` binaries for every platform.
+#
+# Push a tag like `v0.1.0` (matching package.json's version) to publish a GitHub release.
+# Run it by hand from the Actions tab to build without releasing; the binaries are kept as
+# workflow artifacts.
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # macOS, so the macOS binaries can be signed (ad hoc) and tried before release.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun test
+
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          expected="v$(jq -r .version package.json)"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "tag $GITHUB_REF_NAME doesn't match package.json version $expected"
+            exit 1
+          fi
+
+      - name: Build
+        run: |
+          mkdir dist
+          for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 windows-x64; do
+            ext=""
+            [ "$target" = windows-x64 ] && ext=".exe"
+            bun build --compile --minify --target="bun-$target" index.ts --outfile "dist/dice-$target$ext"
+          done
+
+      - name: Sign the macOS binaries
+        run: codesign --force --sign - dist/dice-darwin-*
+
+      - name: Try the binary
+        run: |
+          ./dist/dice-darwin-arm64 --version
+          ./dist/dice-darwin-arm64 tests/cases/example.dice --seed
+
+      - name: Checksums
+        run: cd dist && shasum -a 256 dice-* > SHA256SUMS && cat SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dice
+          path: dist/
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes

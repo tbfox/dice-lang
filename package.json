@@ -1,5 +1,9 @@
 {
   "name": "dice-lang",
+  "version": "0.1.0",
+  "description": "A small language for rolling dice and computing their probabilities",
+  "license": "MIT",
+  "repository": "github:tbfox/dice-lang",
   "module": "index.ts",
   "type": "module",
   "private": true,

@@ -67,3 +67,12 @@ test("an unknown option points to --help", async () => {
   expect(r.exitCode).toBe(1);
   expect(r.stderr).toContain("dice --help");
 });
+
+test("--version prints the package.json version", async () => {
+  const { version } = await Bun.file(join(root, "package.json")).json();
+  for (const flag of ["--version", "-v"]) {
+    const r = await cli(flag);
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toBe(`dice ${version}\n`);
+  }
+});

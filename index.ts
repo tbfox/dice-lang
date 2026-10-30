@@ -6,12 +6,16 @@
 //   dice program.dice --seed=42    rolls from seed 42
 //   dice program.dice --watch      run again every time the file is saved
 //   dice --help                    show help (also shown when run with no arguments)
+//   dice --version                 show the version
 //
 // `dice` is this file, linked by `bun link`. `bun index.ts ...` works the same.
 
 import { watch } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import pkg from "./package.json";
 import { run } from "./src/run.ts";
+
+const reference = "https://github.com/tbfox/dice-lang/blob/main/GRAMMAR.md";
 
 function help(): string {
   const tty = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -21,16 +25,17 @@ function help(): string {
   const cmd = style("36");
   const dim = style("2");
 
-  return `${bold("dice")} — roll dice and compute their probabilities
+  return `${bold("dice")} ${pkg.version} — roll dice and compute their probabilities
 
 ${head("Usage")}
   ${cmd("dice <program.dice>")} [options]
 
 ${head("Options")}
-  ${cmd("--seed")}       roll from the default seed (0), so rolls repeat
-  ${cmd("--seed=N")}     roll from seed N
-  ${cmd("--watch")}      run again every time the file is saved
-  ${cmd("-h, --help")}   show this help
+  ${cmd("--seed")}          roll from the default seed (0), so rolls repeat
+  ${cmd("--seed=N")}        roll from seed N
+  ${cmd("--watch")}         run again every time the file is saved
+  ${cmd("-h, --help")}      show this help
+  ${cmd("-v, --version")}   show the version
 
 ${head("Examples")}
   ${cmd("dice attack.dice")}
@@ -42,7 +47,7 @@ ${head("A small program")}
   print(dmg.mean);    ${dim("// 10")}
   dmg.roll()          ${dim("// a random total")}
 
-${dim(`Language reference: ${join(import.meta.dir, "GRAMMAR.md")}`)}
+${dim(`Language reference: ${reference}`)}
 `;
 }
 
@@ -64,6 +69,9 @@ for (const arg of process.argv.slice(2)) {
     seed = BigInt(value);
   } else if (arg === "--watch") {
     watching = true;
+  } else if (arg === "--version" || arg === "-v") {
+    process.stdout.write(`dice ${pkg.version}\n`);
+    process.exit(0);
   } else if (arg === "--help" || arg === "-h") {
     process.stdout.write(help());
     process.exit(0);
