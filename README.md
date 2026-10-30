@@ -4,10 +4,15 @@ A small language for rolling dice and computing their probabilities. The languag
 [GRAMMAR.md](GRAMMAR.md).
 
 ```sh
-bun index.ts program.dice              # random rolls
-bun index.ts program.dice --seed       # rolls from the default seed (0)
-bun index.ts program.dice --seed=42    # rolls from seed 42
+bun link                           # once: puts `dice` on your PATH
+
+dice program.dice                  # random rolls
+dice program.dice --seed           # rolls from the default seed (0)
+dice program.dice --seed=42        # rolls from seed 42
+dice program.dice --watch          # run again every time the file is saved
 ```
+
+`bun index.ts ...` works the same as `dice ...`.
 
 ## Tests
 

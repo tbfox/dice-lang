@@ -53,8 +53,17 @@ test("a missing file is an error", async () => {
   expect(r.stderr).toContain("couldn't read");
 });
 
-test("no file prints usage", async () => {
-  const r = await cli();
+test("no arguments and --help print help", async () => {
+  for (const args of [[], ["--help"], ["-h"]]) {
+    const r = await cli(...args);
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toContain("Usage");
+    expect(r.stdout).not.toContain("\x1b["); // no color when not a terminal
+  }
+});
+
+test("an unknown option points to --help", async () => {
+  const r = await cli(example, "--nope");
   expect(r.exitCode).toBe(1);
-  expect(r.stderr).toContain("usage:");
+  expect(r.stderr).toContain("dice --help");
 });
