@@ -42,6 +42,11 @@ comment  = "//" { any char except newline } ;
 token, not an identifier. That means `d20` and `v17` are literals, while `dmg`, `dc` and `save` are names.
 Words like `d4x` or `v1a` are ordinary identifiers.
 
+A word that starts with a digit must be exactly a `NUMBER` or a `DICE`, so `2d4x` is an error.
+
+**Dice limits.** A die needs a count of at least 1 and at least 2 sides, so `d0`, `0d6` and `2d1` are
+errors. Any value is fine, including `v0`.
+
 | source | tokens |
 |---|---|
 | `2d4` | `DICE(2, 4)` |
@@ -98,20 +103,25 @@ So `d20 + 5.min` parses as `d20 + (5.min)`. Use `(d20 + 5).min` for the minimum 
 `let` takes everything to its right, so it can't appear inside a `+` or `-` without parentheses:
 `1 + let x = 2` is an error, but `1 + (let x = 2)` is valid and evaluates to `3`.
 
+**Re-binding.** `let` on a name that is already bound replaces it, and the old value can no longer be
+reached. Binding always copies: after `let a = dmg;`, `a` and `dmg` are separate values.
+
 ### 3.1 Semicolons and the program result
 
 - `;` separates expressions. By convention, put one at the end of each line.
 - `;` discards a value. An expression followed by `;` produces `nil`.
 - The program's result is its last expression. It is always written to stdout using the formats in 4.4.
   If the program ends with `;`, the result is `nil`, so the last line of stdout is `nil`.
+- An empty program's result is `nil`, so it writes `nil`.
 
 | program | stdout |
 |---|---|
 | `2d4.roll()` | `5` (the roll) |
 | `2d4.roll();` | `nil` |
 | `print(2d4.roll())` | `5` from `print`, then `nil`, because `print` returns `nil` |
-| `print(let outcome = dmg.roll_values());` | `[2, 4] - 6`, then `nil` |
-| `let outcome = dmg.roll_values(); print(outcome);` | `[2, 4] - 6`, then `nil` (same as above) |
+| `print(let outcome = dmg.roll_values());` | `[2, 4] : 6`, then `nil` |
+| `let outcome = dmg.roll_values(); print(outcome);` | `[2, 4] : 6`, then `nil` (same as above) |
+| (empty) | `nil` |
 
 ---
 
@@ -124,16 +134,19 @@ in v0.1.
 
 | type | made by | example |
 |---|---|---|
-| `number` | `NUMBER`, `.mean`, `.min`, `.max`, `.sum`, `.roll()`, `number ± number` | `5` |
+| `number` | `NUMBER`, `.mean`, `.min`, `.max`, `.sum`, `.roll()`, `number ± number` | `5`, `15.5` |
 | `dice` | `DICE`, any `+` / `-` with a `dice` on either side | `2d4`, `d20+5`, `5d12-2d4` |
-| `value` | `VALUE` | `v17` |
+| `value` | `VALUE` | prints `v17` |
 | `table` | `.at_least`, `.at_most` | |
-| `roll` | `.roll_values()` | prints `[2, 4] - 6` |
+| `roll` | `.roll_values()` | prints `[2, 4] : 6` |
 | `list` | `roll.values` | `[2, 4]` |
 | `bool` | `true`, `false` | prints `true` / `false` |
 | `result` | `.roll(n)`, `.roll_against(d)` | prints `success` / `fail` |
 | `nil` | `expr;`, `print(x)` | prints `nil` |
 | `debug` | `number.debug` | prints `dmg : 2d4 (mean): 5` |
+
+A `number` can be a decimal, such as `(d20 + 5).mean`, which is `15.5`. Number literals are whole
+numbers only.
 
 ### 4.1.1 Dice arithmetic
 
@@ -149,8 +162,18 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 
 - Outcomes can be negative or zero. Tables list them in ascending order.
 - `value` (`v17`) can't be used with `+` / `-` yet.
-- **Notation** is the expression with spaces removed and every die written with its count
-  (`d20` becomes `1d20`). Variables are replaced by their notation: if `dmg = 2d4`, then `dmg + 1` is `2d4+1`.
+- `d6 + dmg.mean` is a type error.
+- **Notation** is the expression re-printed so you can see what it is: spaces removed, every die
+  written with its count (`d20` becomes `1d20`), and variables expanded to their notation. Parentheses
+  are kept only where they change the meaning, which is around a `+` / `-` on the right of a `-`:
+
+| source | notation |
+|---|---|
+| `let dmg = 2d4;` then `dmg + 1` | `2d4+1` |
+| `let a = d4 + 1;` then `10 + a` | `10+1d4+1` |
+| `let a = d4 + 1;` then `10 - a` | `10-(1d4+1)` |
+| `(d20 + 5) - 2d4` | `1d20+5-2d4` |
+| `2d4 - (d6 - 1)` | `2d4-(1d6-1)` |
 
 ### 4.2 Functions
 
@@ -169,11 +192,16 @@ The result's outcomes are every possible sum or difference, weighted by probabil
 | `dice` | `.max` | `number` | largest possible outcome |
 | `dice` | `.roll()` | `number` | roll once and return the total |
 | `dice` | `.roll(n)` | `result` | roll once; success if the total equals `n` |
-| `dice` | `.roll_values()` | `roll` | roll once, keeping each die |
-| `roll` | `.values` | `list` | each die's result, e.g. `[2, 4]` |
+| `dice` | `.roll_values()` | `roll` | roll once, keeping each die's value |
+| `roll` | `.values` | `list` | the rolled value of every die, e.g. `[2, 4]` |
 | `roll` | `.sum` | `number` | total of `.values` |
 | `number` | `.debug` | `debug` | the number with its label (see 4.4) |
 | `value` | `.roll_against(d, must_exceed = false)` | `result` | roll `d`; see below (`must_exceed` is a `bool`) |
+
+Members written without `()` are **fields**, and members written with `()` are **methods**. Calling a
+field (`dmg.mean()`) or using a method without calling it (`dmg.roll`) is an error.
+
+The `.roll_values()` format for dice that use `-` will be decided later.
 
 **`roll_against`** rolls `d` once and compares the total to the value:
 
@@ -204,7 +232,7 @@ Numbers that don't come from `.mean`, `.min` or `.max` have no notation or kind,
 |---|---|---|
 | `dmg.mean.debug` | `dmg : 2d4 (mean): 5` | from `.mean` / `.min` / `.max`: the full label above |
 | `5.debug` | `nil : 5` | a number literal: `nil` |
-| `dmg.roll().debug` | `dmg.roll() : 5` | a `.roll()` call: the call as written |
+| `dmg.roll().debug` | `dmg.roll() : 5` | a `.roll()` call: the call re-printed with spaces removed, so `dmg.roll( ).debug` prints the same |
 | `(dmg.mean + 1).debug` | `__exp__ : 6` | `number ± number`: `__exp__` |
 
 The name is always the variable the dice is read from, even when it was copied from another variable:
@@ -230,12 +258,12 @@ a : 2d4 (normal):
 ```
 
 - **Numbers** everywhere, including table percentages, print with up to 4 decimals, rounded, with no
-  trailing zeros: `5`, `12.5`, `10.2345`, `100`.
+  trailing zeros: `5`, `12.5`, `10.2345`, `100`. A percentage too small to show prints as `0`.
 - A table row is the outcome, 4 spaces, then the percentage. Rows have no trailing spaces.
   Column alignment will be decided later.
-- Plain results print with no label or separator: a `number` prints as its value, a `bool` prints as `true` / `false`, a `result` as
-  `success` / `fail`, a `list` as `[2, 4]`, a `roll` as its values, ` - `, then its sum (`[2, 4] - 6`),
-  and `nil` as `nil`.
+- Plain results print with no label or separator: a `number` prints as its value, a `value` as `v17`,
+  a `bool` as `true` / `false`, a `result` as `success` / `fail`, a `list` as `[2, 4]`, a `roll` as its
+  values, ` : `, then its sum (`[2, 4] : 6`), and `nil` as `nil`.
 - A `result` has no other data yet. Extra details may be attached to it later.
 
 ---
@@ -310,8 +338,60 @@ nil
 
 ---
 
-## 6. Open questions
+## 6. Running
+
+```sh
+bun index.ts program.dice              # random rolls
+bun index.ts program.dice --seed       # rolls from the default seed (0)
+bun index.ts program.dice --seed=42    # rolls from seed 42
+```
+
+A seed is a non-negative whole number. The same program, seed and interpreter version always produce
+the same output.
+
+---
+
+## 7. Errors
+
+Errors look like Rust compiler errors. They are written to stderr, in color when stderr is a terminal:
+
+```
+error: undefined variable `dmgg`
+ --> program.dice:3:7
+  |
+3 | print(dmgg.mean);
+  |       ^^^^ not defined
+  |
+  = help: did you mean `dmg`?
+```
+
+```
+error: a die needs at least 2 sides
+ --> program.dice:1:11
+  |
+1 | let dmg = 2d1;
+  |           ^^^ this die has 1 side
+```
+
+- The first line is `error: ` and a short message.
+- `-->` gives the file, line and column.
+- The source line is shown with `^` under the part that caused the error, plus a short label.
+- `= note:` and `= help:` lines are optional.
+- Syntax errors are reported before anything runs. Other errors stop the program where they happen,
+  and anything already printed stays on stdout.
+- After an error, the interpreter exits with code 1 and doesn't write a program result.
+
+---
+
+## 8. Open questions
 
 - **`.debug` on other numbers.** What labels do `outcome.sum.debug` and `let n = 5; n.debug` get?
 - **`.debug` name after copying.** For `let m = dmg.mean; print(m.debug)`, is the label `m : 2d4 (mean): 5`
   (the variable it's read from, like dice) or `dmg : 2d4 (mean): 5` (the dice it came from)?
+- **Why `d6 + dmg.mean` is a type error.** `dmg.mean` is `5`, a whole number. Is it rejected because
+  `.mean` always gives a decimal-kind number, or because only number literals can be added to dice?
+- **`.roll_values()` with constants.** For `(d20 + 5).roll_values()`, `.values` is `[14]`. Is `.sum`
+  `14` (the dice only) or `19` (the total)?
+- **Shadowing built-ins.** Scopes aren't defined yet. Is `let print = 1` allowed at the top level?
+- **Errors.** Should errors have codes (`error[E0001]`)? Should the interpreter report several errors at
+  once, or stop at the first? When should errors include a stack trace?
