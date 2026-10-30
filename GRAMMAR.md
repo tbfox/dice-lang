@@ -203,7 +203,7 @@ Numbers that don't come from `.mean`, `.min` or `.max` have no notation or kind,
 | `dmg.mean.debug` | `dmg : 2d4 (mean): 5` | from `.mean` / `.min` / `.max`: the full label above |
 | `5.debug` | `nil : 5` | a number literal: `nil` |
 | `dmg.roll().debug` | `dmg.roll() : 5` | a `.roll()` call: the call as written |
-| `(dmg.mean + 1).debug` | `exp : 6` | `number ± number`: `exp` |
+| `(dmg.mean + 1).debug` | `__exp__ : 6` | `number ± number`: `__exp__` |
 
 The name is always the variable the dice is read from, even when it was copied from another variable:
 
