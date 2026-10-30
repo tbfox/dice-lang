@@ -60,6 +60,9 @@ An optional `<name>.args` holds `--seed=N`; otherwise the seed is 0.
 The [release workflow](.github/workflows/release.yml) tests, builds binaries for macOS, Linux and Windows,
 and publishes them as a GitHub release.
 
+If pushing the tag doesn't start the workflow, `bun run release:trigger` starts it on the tag for the
+current `package.json` version.
+
 ## License
 
 [MIT](LICENSE)

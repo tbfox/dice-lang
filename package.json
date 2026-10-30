@@ -10,6 +10,9 @@
   "bin": {
     "dice": "index.ts"
   },
+  "scripts": {
+    "release:trigger": "gh workflow run release.yml --ref v$npm_package_version -R tbfox/dice-lang"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
